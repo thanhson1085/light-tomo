@@ -1,2 +1,2 @@
 all:
-	go build -o light *.go
+	go build -o lit *.go
