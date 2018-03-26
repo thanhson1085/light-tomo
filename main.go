@@ -26,19 +26,171 @@ import (
 )
 
 var (
+	configFileFlag = cli.StringFlag{
+		Name:  "config",
+		Usage: "TOML configuration file",
+	}
+	// Git SHA1 commit hash of the release (set via linker flags)
+	gitCommit = ""
+	// Ethereum address of the Geth release oracle.
 	relOracle = common.HexToAddress("0xfa7b9770ca4cb04296cac84f37736d4041251cdf")
-)
-
-func main() {
-	cli.VersionFlag = cli.BoolFlag{
-		Name:  "print-version, V",
-		Usage: "print only the version",
+	// The app that holds all commands and flags.
+	app = utils.NewApp(gitCommit, "the go-ethereum command line interface")
+	// flags that configure the node
+	nodeFlags = []cli.Flag{
+		utils.IdentityFlag,
+		utils.UnlockedAccountFlag,
+		utils.PasswordFileFlag,
+		utils.BootnodesFlag,
+		utils.BootnodesV4Flag,
+		utils.BootnodesV5Flag,
+		utils.DataDirFlag,
+		utils.KeyStoreDirFlag,
+		utils.NoUSBFlag,
+		utils.DashboardEnabledFlag,
+		utils.DashboardAddrFlag,
+		utils.DashboardPortFlag,
+		utils.DashboardRefreshFlag,
+		utils.DashboardAssetsFlag,
+		utils.EthashCacheDirFlag,
+		utils.EthashCachesInMemoryFlag,
+		utils.EthashCachesOnDiskFlag,
+		utils.EthashDatasetDirFlag,
+		utils.EthashDatasetsInMemoryFlag,
+		utils.EthashDatasetsOnDiskFlag,
+		utils.TxPoolNoLocalsFlag,
+		utils.TxPoolJournalFlag,
+		utils.TxPoolRejournalFlag,
+		utils.TxPoolPriceLimitFlag,
+		utils.TxPoolPriceBumpFlag,
+		utils.TxPoolAccountSlotsFlag,
+		utils.TxPoolGlobalSlotsFlag,
+		utils.TxPoolAccountQueueFlag,
+		utils.TxPoolGlobalQueueFlag,
+		utils.TxPoolLifetimeFlag,
+		utils.FastSyncFlag,
+		utils.LightModeFlag,
+		utils.SyncModeFlag,
+		utils.LightServFlag,
+		utils.LightPeersFlag,
+		utils.LightKDFFlag,
+		utils.CacheFlag,
+		utils.TrieCacheGenFlag,
+		utils.ListenPortFlag,
+		utils.MaxPeersFlag,
+		utils.MaxPendingPeersFlag,
+		utils.EtherbaseFlag,
+		utils.GasPriceFlag,
+		utils.MinerThreadsFlag,
+		utils.MiningEnabledFlag,
+		utils.TargetGasLimitFlag,
+		utils.NATFlag,
+		utils.NoDiscoverFlag,
+		utils.DiscoveryV5Flag,
+		utils.NetrestrictFlag,
+		utils.NodeKeyFileFlag,
+		utils.NodeKeyHexFlag,
+		utils.DeveloperFlag,
+		utils.DeveloperPeriodFlag,
+		utils.TestnetFlag,
+		utils.RinkebyFlag,
+		utils.VMEnableDebugFlag,
+		utils.NetworkIdFlag,
+		utils.RPCCORSDomainFlag,
+		utils.EthStatsURLFlag,
+		utils.MetricsEnabledFlag,
+		utils.FakePoWFlag,
+		utils.NoCompactionFlag,
+		utils.GpoBlocksFlag,
+		utils.GpoPercentileFlag,
+		utils.ExtraDataFlag,
+		configFileFlag,
 	}
 
-	app := cli.NewApp()
-	app.Name = "lit"
-	app.Version = "1.0.0"
-	app.Run(os.Args)
+	rpcFlags = []cli.Flag{
+		utils.RPCEnabledFlag,
+		utils.RPCListenAddrFlag,
+		utils.RPCPortFlag,
+		utils.RPCApiFlag,
+		utils.WSEnabledFlag,
+		utils.WSListenAddrFlag,
+		utils.WSPortFlag,
+		utils.WSApiFlag,
+		utils.WSAllowedOriginsFlag,
+		utils.IPCDisabledFlag,
+		utils.IPCPathFlag,
+	}
+
+	whisperFlags = []cli.Flag{
+		utils.WhisperEnabledFlag,
+		utils.WhisperMaxMessageSizeFlag,
+		utils.WhisperMinPOWFlag,
+	}
+)
+
+func init() {
+	// Initialize the CLI app and start Geth
+	app.Action = tomo
+	app.HideVersion = true // we have a command to print the version
+	app.Copyright = "Copyright 2013-2017 The go-ethereum Authors"
+	app.Commands = []cli.Command{
+		// See chaincmd.go:
+		initCommand,
+		importCommand,
+		exportCommand,
+		copydbCommand,
+		removedbCommand,
+		dumpCommand,
+		// See monitorcmd.go:
+		monitorCommand,
+		// See accountcmd.go:
+		accountCommand,
+		walletCommand,
+		// See consolecmd.go:
+		consoleCommand,
+		attachCommand,
+		javascriptCommand,
+		// See misccmd.go:
+		makecacheCommand,
+		makedagCommand,
+		versionCommand,
+		bugCommand,
+		licenseCommand,
+		// See config.go
+		dumpConfigCommand,
+	}
+	sort.Sort(cli.CommandsByName(app.Commands))
+
+	app.Flags = append(app.Flags, nodeFlags...)
+	app.Flags = append(app.Flags, rpcFlags...)
+	app.Flags = append(app.Flags, consoleFlags...)
+	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, whisperFlags...)
+
+	app.Before = func(ctx *cli.Context) error {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+		if err := debug.Setup(ctx); err != nil {
+			return err
+		}
+		// Start system runtime metrics collection
+		go metrics.CollectProcessMetrics(3 * time.Second)
+
+		utils.SetupNetwork(ctx)
+		return nil
+	}
+
+	app.After = func(ctx *cli.Context) error {
+		debug.Exit()
+		console.Stdin.Close() // Resets terminal mode.
+		return nil
+	}
+}
+
+func main() {
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
 
 type ethstatsConfig struct {
@@ -104,7 +256,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 
 	// Load config file.
-	if file := ctx.GlobalString("config"); file != "" {
+	if file := ctx.GlobalString(configFileFlag.Name); file != "" {
 		if err := loadConfig(file, &cfg); err != nil {
 			utils.Fatalf("%v", err)
 		}
