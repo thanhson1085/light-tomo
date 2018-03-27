@@ -35,7 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	//"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/thanhson1085/light-tomo/utils"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -239,18 +239,20 @@ func importChain(ctx *cli.Context) error {
 	}
 
 	// Compact the entire database to more accurately measure disk io and print the stats
-	start = time.Now()
-	fmt.Println("Compacting entire database...")
-	if err = db.LDB().CompactRange(util.Range{}); err != nil {
-		utils.Fatalf("Compaction failed: %v", err)
-	}
-	fmt.Printf("Compaction done in %v.\n\n", time.Since(start))
+	/*
+		start = time.Now()
+		fmt.Println("Compacting entire database...")
+		if err = db.LDB().CompactRange(util.Range{}); err != nil {
+			utils.Fatalf("Compaction failed: %v", err)
+		}
+		fmt.Printf("Compaction done in %v.\n\n", time.Since(start))
 
-	stats, err = db.LDB().GetProperty("leveldb.stats")
-	if err != nil {
-		utils.Fatalf("Failed to read database stats: %v", err)
-	}
-	fmt.Println(stats)
+		stats, err = db.LDB().GetProperty("leveldb.stats")
+		if err != nil {
+			utils.Fatalf("Failed to read database stats: %v", err)
+		}
+		fmt.Println(stats)
+	*/
 
 	return nil
 }
@@ -325,12 +327,14 @@ func copyDb(ctx *cli.Context) error {
 	fmt.Printf("Database copy done in %v\n", time.Since(start))
 
 	// Compact the entire database to remove any sync overhead
-	start = time.Now()
-	fmt.Println("Compacting entire database...")
-	if err = chainDb.(*ethdb.LDBDatabase).LDB().CompactRange(util.Range{}); err != nil {
-		utils.Fatalf("Compaction failed: %v", err)
-	}
-	fmt.Printf("Compaction done in %v.\n\n", time.Since(start))
+	/*
+		start = time.Now()
+		fmt.Println("Compacting entire database...")
+		if err = chainDb.(*ethdb.LDBDatabase).LDB().CompactRange(util.Range{}); err != nil {
+			utils.Fatalf("Compaction failed: %v", err)
+		}
+		fmt.Printf("Compaction done in %v.\n\n", time.Since(start))
+	*/
 
 	return nil
 }

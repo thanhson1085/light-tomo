@@ -21,6 +21,8 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"reflect"
+	"runtime"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -142,46 +144,40 @@ func init() {
 		removedbCommand,
 		dumpCommand,
 		// See monitorcmd.go:
-		monitorCommand,
+		//monitorCommand,
 		// See accountcmd.go:
 		accountCommand,
 		walletCommand,
 		// See consolecmd.go:
-		consoleCommand,
-		attachCommand,
-		javascriptCommand,
+		//consoleCommand,
+		//attachCommand,
+		//javascriptCommand,
 		// See misccmd.go:
-		makecacheCommand,
-		makedagCommand,
-		versionCommand,
-		bugCommand,
-		licenseCommand,
+		//makecacheCommand,
+		//makedagCommand,
+		//versionCommand,
+		//bugCommand,
+		//licenseCommand,
 		// See config.go
-		dumpConfigCommand,
+		//dumpConfigCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
 	app.Flags = append(app.Flags, nodeFlags...)
 	app.Flags = append(app.Flags, rpcFlags...)
-	app.Flags = append(app.Flags, consoleFlags...)
-	app.Flags = append(app.Flags, debug.Flags...)
 	app.Flags = append(app.Flags, whisperFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
 		runtime.GOMAXPROCS(runtime.NumCPU())
-		if err := debug.Setup(ctx); err != nil {
-			return err
-		}
 		// Start system runtime metrics collection
-		go metrics.CollectProcessMetrics(3 * time.Second)
+		//go metrics.CollectProcessMetrics(3 * time.Second)
 
 		utils.SetupNetwork(ctx)
 		return nil
 	}
 
 	app.After = func(ctx *cli.Context) error {
-		debug.Exit()
-		console.Stdin.Close() // Resets terminal mode.
+		//console.Stdin.Close() // Resets terminal mode.
 		return nil
 	}
 }
@@ -227,7 +223,7 @@ func defaultNodeConfig() node.Config {
 	cfg.Version = params.VersionWithCommit("")
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth", "shh")
 	cfg.WSModules = append(cfg.WSModules, "eth", "shh")
-	cfg.IPCPath = "geth.ipc"
+	cfg.IPCPath = "tomo.ipc"
 	return cfg
 }
 
@@ -378,27 +374,29 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 		}
 	}()
 	// Start auxiliary services if enabled
-	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
-		// Mining only makes sense if a full Ethereum node is running
-		var ethereum *eth.Ethereum
-		if err := stack.Service(&ethereum); err != nil {
-			utils.Fatalf("ethereum service not running: %v", err)
-		}
-		// Use a reduced number of threads if requested
-		if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
-			type threaded interface {
-				SetThreads(threads int)
+	/*
+		if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
+			// Mining only makes sense if a full Ethereum node is running
+			var ethereum *eth.Ethereum
+			if err := stack.Service(&ethereum); err != nil {
+				utils.Fatalf("ethereum service not running: %v", err)
 			}
-			if th, ok := ethereum.Engine().(threaded); ok {
-				th.SetThreads(threads)
+			// Use a reduced number of threads if requested
+			if threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name); threads > 0 {
+				type threaded interface {
+					SetThreads(threads int)
+				}
+				if th, ok := ethereum.Engine().(threaded); ok {
+					th.SetThreads(threads)
+				}
 			}
+			// Set the gas price to the limits from the CLI and start mining
+				ethereum.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
+				if err := ethereum.StartMining(true); err != nil {
+					utils.Fatalf("Failed to start mining: %v", err)
+				}
 		}
-		// Set the gas price to the limits from the CLI and start mining
-		ethereum.TxPool().SetGasPrice(utils.GlobalBig(ctx, utils.GasPriceFlag.Name))
-		if err := ethereum.StartMining(true); err != nil {
-			utils.Fatalf("Failed to start mining: %v", err)
-		}
-	}
+	*/
 }
 
 func tomo(ctx *cli.Context) error {
